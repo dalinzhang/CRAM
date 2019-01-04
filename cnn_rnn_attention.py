@@ -1,7 +1,4 @@
 #! /usr/bin/python3
-###################################################################################################
-# read data
-###################################################################################################
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -43,9 +40,7 @@ def multiclass_roc_auc_score(y_true, y_score):
     return roc_auc
 
 
-tf.set_random_seed(33)
-
-subject_id = 4
+subject_id = 1
 data_folder = '/home/dalinzhang/scratch/datasets/BCICIV_2a_gdf'
 data = sio.loadmat(data_folder+"/cross_sub/cross_subject_data_"+str(subject_id)+".mat")
 print("subject id ", subject_id)
@@ -56,7 +51,6 @@ train_X	= data["train_x"]
 test_y	= data["test_y"].ravel()
 train_y = data["train_y"].ravel()
 
-# train_y = np.tile(train_y,2)
 
 train_y = np.asarray(pd.get_dummies(train_y), dtype = np.int8)
 test_y = np.asarray(pd.get_dummies(test_y), dtype = np.int8)
@@ -66,7 +60,6 @@ test_y = np.asarray(pd.get_dummies(test_y), dtype = np.int8)
 ###########################################################################
 
 window_size = 400
-print("window size: ",window_size)
 step = 50
 n_channel = 22
 
@@ -142,9 +135,6 @@ pooling_stride_1st = 10
 attention_size = 512
 n_hidden_state = 64
 
-n_fc_in = "None"
-
-n_fc_out = "None"
 ###########################################################################
 # set dataset parameters
 ###########################################################################
@@ -166,7 +156,7 @@ num_labels = 4
 learning_rate = 1e-4
 
 # set maximum traing epochs
-training_epochs = 500
+training_epochs = 200
 
 # set batch size
 batch_size = 10
@@ -174,18 +164,12 @@ batch_size = 10
 # set dropout probability
 dropout_prob = 0.5
 
-# set whether use L2 regularization
-enable_penalty = False
-
-# set L2 penalty
-lambda_loss_amount = 0.0005
-
 # set train batch number per epoch
 batch_num_per_epoch = train_x.shape[0]//batch_size
+
 # instance cnn class
 padding = 'VALID'
-print('padding: ', padding)
-# cnn_2d = cnn(padding='VALID')
+
 cnn_2d = cnn(padding=padding)
 
 # input placeholder
@@ -205,21 +189,12 @@ pool1_flat = tf.reshape(pool_1, [-1, pool1_shape[1]*pool1_shape[2]*pool1_shape[3
 
 fc_drop = tf.nn.dropout(pool1_flat, keep_prob)	
 
-if (n_fc_in == 'None'):
-	print("fc_in is None\n")
-	lstm_in = tf.reshape(fc_drop, [-1, num_timestep, pool1_shape[1]*pool1_shape[2]*pool1_shape[3]])
-else:
-	lstm_in = tf.reshape(fc_drop, [-1, num_timestep, n_fc_in])
+lstm_in = tf.reshape(fc_drop, [-1, num_timestep, pool1_shape[1]*pool1_shape[2]*pool1_shape[3]])
 
 ########################## RNN ########################
 cells = []
 for _ in range(2):
 	cell = tf.contrib.rnn.BasicLSTMCell(n_hidden_state, forget_bias=1.0, state_is_tuple=True)
-# cell = tf.contrib.rnn.LSTMBlockCell(n_hidden_state, forget_bias=1.0)
-# cell = tf.contrib.rnn.GRUBlockCell(n_hidden_state, forget_bias=1.0, state_is_tuple=True)
-# cell = tf.contrib.rnn.GridLSTMCell(n_hidden_state, forget_bias=1.0, state_is_tuple=True)
-# cell = tf.contrib.rnn.GLSTMCell(n_hidden_state, forget_bias=1.0, state_is_tuple=True)
-# cell = tf.contrib.rnn.GRUCell(n_hidden_state, state_is_tuple=True)
 	cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=keep_prob)
 	cells.append(cell)
 lstm_cell = tf.contrib.rnn.MultiRNNCell(cells)
@@ -229,18 +204,12 @@ init_state = lstm_cell.zero_state(batch_size, dtype=tf.float32)
 # output ==> [batch, step, n_hidden_state]
 rnn_op, states = tf.nn.dynamic_rnn(lstm_cell, lstm_in, initial_state=init_state, time_major=False)
 
-print("rnn output: ", rnn_op.get_shape().as_list())
 ########################## attention ########################
 with tf.name_scope('Attention_layer'):
     attention_op, alphas = attention(rnn_op, attention_size, time_major = False, return_alphas=True)
-    # tf.summary.histogram('alphas', alphas)
-
-
-
-
 
 attention_drop = tf.nn.dropout(attention_op, keep_prob)	
-print("attention_op: ", attention_op)
+
 y_ = cnn_2d.apply_readout(attention_drop, rnn_op.shape[2].value, num_labels)
 
 # probability prediction 
@@ -249,17 +218,8 @@ y_prob = tf.nn.softmax(y_, name = "y_prob")
 # class prediction 
 y_pred = tf.argmax(y_prob, 1, name = "y_pred")
 
-# l2 regularization
-l2 = lambda_loss_amount * sum(
-	tf.nn.l2_loss(tf_var) for tf_var in tf.trainable_variables()
-)
-
-if enable_penalty:
-	# cross entropy cost function
-	cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=y_, labels=Y)) + l2
-else:
-	# cross entropy cost function
-	cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=y_, labels=Y), name = 'loss')
+# cross entropy cost function
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=y_, labels=Y), name = 'loss')
 
 
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
