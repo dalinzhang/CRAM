@@ -116,21 +116,16 @@ num_timestep = train_x.shape[1]
 kernel_height_1st	= 22
 kernel_width_1st 	= 45
 
-# kernel_height_1st	= 3
-# kernel_width_1st 	= 3
-
 kernel_stride		= 1
 
 conv_channel_num	= 40
+
 # pooling parameter
-# pooling_height_1st 	= 5
-# pooling_width_1st 	= 5
-# 
-# pooling_stride_1st = 5
 pooling_height_1st 	= 1
 pooling_width_1st 	= 75
 
 pooling_stride_1st = 10
+
 # full connected parameter
 attention_size = 512
 n_hidden_state = 64
