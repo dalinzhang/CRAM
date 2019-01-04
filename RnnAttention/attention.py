@@ -1,32 +1,5 @@
 import tensorflow as tf
 
-def apply_readout(x, x_size, readout_size):
-	readout_weight = weight_variable([x_size, readout_size])
-	# readout_bias = bias_variable([readout_size])
-	# return tf.add(tf.matmul(x, readout_weight), readout_bias)
-	return tf.matmul(x, readout_weight)
-
-
-def batch_norm(inputs, train_phase):
-	return tf.layers.batch_normalization(inputs, axis=1, momentum=0.993, epsilon=1e-5, scale=False, training=train_phase)
-
-
-def apply_fully_connect(x, x_size, fc_size, train_phase):
-	fc_weight = weight_variable([x_size, fc_size])
-	fc_bias = bias_variable([fc_size])
-	fc = tf.add(tf.matmul(x, fc_weight), fc_bias)
-	fc_bn = batch_norm(fc, train_phase)
-	return tf.nn.elu(fc_bn)
-
-
-def weight_variable(shape):
-	initial = tf.truncated_normal(shape, stddev = 0.1)
-	return tf.Variable(initial)
-
-
-def bias_variable(shape):
-	initial = tf.constant(0.1, shape = shape)
-	return tf.Variable(initial)
 
 def attention(inputs, attention_size, time_major=False, return_alphas=False, train_phase=True):
     """
@@ -93,10 +66,8 @@ def attention(inputs, attention_size, time_major=False, return_alphas=False, tra
         # Applying fully connected layer with non-linear activation to each of the B*T timestamps;
         #  the shape of `v` is (B,T,D)*(D,A)=(B,T,A), where A=attention_size
         v = tf.tanh(tf.tensordot(inputs, w_omega, axes=1) + b_omega)
-        # v = apply_fully_connect(inputs, hidden_size, attention_size, train_phase)
     # For each of the timestamps its vector of size A from `v` is reduced with `u` vector
     vu = tf.tensordot(v, u_omega, axes=1, name='vu')  # (B,T) shape
-    # vu = tf.squeeze(apply_readout(v, attention_size, 1))
     alphas = tf.nn.softmax(vu, name='alphas')         # (B,T) shape
 
     # Output of (Bi-)RNN is reduced with attention vector; the result has (B,D) shape
