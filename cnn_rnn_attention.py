@@ -6,9 +6,8 @@ from cnn_class import cnn
 import time
 import scipy.io as sio
 from sklearn.metrics import classification_report, roc_auc_score, auc, roc_curve, f1_score
-from TfRnnAttention.attention import attention
+from RnnAttention.attention import attention
 from scipy import interp
-from utils import *
 
 
 def multiclass_roc_auc_score(y_true, y_score):
