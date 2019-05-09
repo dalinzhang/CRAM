@@ -43,7 +43,7 @@ class cnn:
 		bias = self.bias_variable([out_channels]) # each feature map shares the same weight and bias
 		conv_1d = tf.add(self.conv1d(x, weight, kernel_stride), bias)
 		conv_1d_bn = self.batch_norm_cnv_1d(conv_1d, train_phase)
-		return tf.nn.elu(conv_1d_bn)
+		return tf.nn.relu(conv_1d_bn)
 
 
 	def apply_conv2d(self, x, filter_height, filter_width, in_channels, out_channels, kernel_stride, train_phase):
@@ -51,7 +51,7 @@ class cnn:
 		bias = self.bias_variable([out_channels]) # each feature map shares the same weight and bias
 		conv_2d = tf.add(self.conv2d(x, weight, kernel_stride), bias)
 		conv_2d_bn = self.batch_norm_cnv_2d(conv_2d, train_phase)
-		return tf.nn.elu(conv_2d_bn)
+		return tf.nn.relu(conv_2d_bn)
 
 
 	
@@ -60,7 +60,7 @@ class cnn:
 		bias = self.bias_variable([out_channels]) # each feature map shares the same weight and bias
 		conv_3d = tf.add(self.conv3d(x, weight, kernel_stride), bias)
 		conv_3d_bn = self.batch_norm_cnv_3d(conv_3d, train_phase)
-		return tf.nn.elu(conv_3d_bn)
+		return tf.nn.relu(conv_3d_bn)
 
 
 	def batch_norm_cnv_3d(self, inputs, train_phase):
@@ -94,7 +94,7 @@ class cnn:
 		fc_bias = self.bias_variable([fc_size])
 		fc = tf.add(tf.matmul(x, fc_weight), fc_bias)
 		fc_bn = self.batch_norm(fc, train_phase)
-		return tf.nn.elu(fc_bn)
+		return tf.nn.relu(fc_bn)
 
 	
 	def apply_readout(self, x, x_size, readout_size):
