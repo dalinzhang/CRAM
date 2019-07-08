@@ -38,13 +38,15 @@ def multiclass_roc_auc_score(y_true, y_score):
     roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
     return roc_auc
 
-
+###########################################################################
+# prepare raw data
+###########################################################################
 subject_id = 1
 data_folder = '/home/dalinzhang/scratch/datasets/BCICIV_2a_gdf'
 data = sio.loadmat(data_folder+"/cross_sub/cross_subject_data_"+str(subject_id)+".mat")
 print("subject id ", subject_id)
 
-test_X	= data["test_x"]
+test_X	= data["test_x"] # [trials, channels, time length]
 train_X	= data["train_x"]
 
 test_y	= data["test_y"].ravel()
@@ -204,6 +206,7 @@ with tf.name_scope('Attention_layer'):
 
 attention_drop = tf.nn.dropout(attention_op, keep_prob)	
 
+########################## readout ########################
 y_ = cnn_2d.apply_readout(attention_drop, rnn_op.shape[2].value, num_labels)
 
 # probability prediction 
@@ -212,6 +215,7 @@ y_prob = tf.nn.softmax(y_, name = "y_prob")
 # class prediction 
 y_pred = tf.argmax(y_prob, 1, name = "y_pred")
 
+########################## loss and optimizer ########################
 # cross entropy cost function
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=y_, labels=Y), name = 'loss')
 
@@ -224,6 +228,7 @@ with tf.control_dependencies(update_ops):
 # get correctly predicted object
 correct_prediction = tf.equal(tf.argmax(tf.nn.softmax(y_), 1), tf.argmax(Y, 1))
 
+########################## define accuracy ########################
 # calculate prediction accuracy
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32), name = 'accuracy')
 
@@ -247,15 +252,13 @@ with tf.Session(config=config) as session:
 		pred_test = np.array([])
 		true_test = []
 		prob_test = []
-		cost_history = np.zeros(shape=[0], dtype=float)
-		# training process
+		########################## training process ########################
 		for b in range(batch_num_per_epoch):
 			offset = (b * batch_size) % (train_y.shape[0] - batch_size) 
 			batch_x = train_x[offset:(offset + batch_size), :, :, :, :]
 			batch_x = batch_x.reshape([len(batch_x)*num_timestep, n_channel, window_size, 1])
 			batch_y = train_y[offset:(offset + batch_size), :]
 			_, c = session.run([optimizer, cost], feed_dict={X: batch_x, Y: batch_y, keep_prob: 1-dropout_prob, train_phase: True})
-			cost_history = np.append(cost_history, c)
 		# calculate train and test accuracy after each training epoch
 		if(epoch%1 == 0):
 			train_accuracy 	= np.zeros(shape=[0], dtype=float)
@@ -264,12 +267,13 @@ with tf.Session(config=config) as session:
 			test_l			= np.zeros(shape=[0], dtype=float)
 			# calculate train accuracy after each training epoch
 			for i in range(batch_num_per_epoch):
+				########################## prepare training data ########################
 				offset = (i * batch_size) % (train_y.shape[0] - batch_size) 
 				train_batch_x = train_x[offset:(offset + batch_size), :, :, :]
 				train_batch_x = train_batch_x.reshape([len(train_batch_x)*num_timestep, n_channel, window_size, 1])
 				train_batch_y = train_y[offset:(offset + batch_size), :]
 
-				
+				########################## calculate training results ########################
 				train_a, train_c = session.run([accuracy, cost], feed_dict={X: train_batch_x, Y: train_batch_y, keep_prob: 1.0, train_phase: False})
 				
 				train_l = np.append(train_l, train_c)
@@ -279,11 +283,13 @@ with tf.Session(config=config) as session:
 			train_loss = train_loss + [np.mean(train_l)]
 			# calculate test accuracy after each training epoch
 			for j in range(batch_num_per_epoch):
+				########################## prepare test data ########################
 				offset = (j * batch_size) % (test_y.shape[0] - batch_size) 
 				test_batch_x = test_x[offset:(offset + batch_size), :, :, :]
 				test_batch_x = test_batch_x.reshape([len(test_batch_x)*num_timestep, n_channel, window_size, 1])
 				test_batch_y = test_y[offset:(offset + batch_size), :]
 				
+				########################## calculate test results ########################
 				test_a, test_c, prob_v, pred_v = session.run([accuracy, cost, y_prob, y_pred], feed_dict={X: test_batch_x, Y: test_batch_y, keep_prob: 1.0, train_phase: False})
 				
 				test_accuracy = np.append(test_accuracy, test_a)
